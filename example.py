@@ -1,7 +1,7 @@
 """
 Example script for composits laminaties and their homoginization.
 
-This file calculates the properties of simple composit plates.
+This file calculates the properties of simple composite plates.
 The stacking sequence should be defined starting from the top of the laminate,
 which is the negative :math:`z` direction.
 
@@ -23,11 +23,11 @@ import failure
 ###############################################################################
 # Ply Properties                                                              #
 ###############################################################################
-# List the elastic properties of the ply.
-El = 142 * 1e3  # MPa
-Et = 13 * 1e3  # MPa
-G = 5 * 1e3  # MPa
-nult = 0.3  # -
+# List the elastic properties of the ply. (Std CF/epoxy)
+El = 142 * 1e3  # Elastic modulus in longitudinal direction, MPa 
+Et = 13 * 1e3  # Elastic modulus in transverse direction, MPa
+G = 5 * 1e3  # Shear Modulus, MPa
+nult = 0.3  # Poisson's Ratio
 
 # List the failure properties of the ply.
 Xt = 2200  # MPa
@@ -37,7 +37,7 @@ Yc = 200  # MPa
 Smax = 120  # MPa
 
 # List the other properties of the ply.
-t = 0.16  # mm
+t = 0.16 # mm -cured ply thickness
 
 # Calculate the ply stiffness matricess matrix.
 Q = abdcal.QPlaneStress(El, Et, nult, G)
@@ -47,7 +47,14 @@ Q = abdcal.QPlaneStress(El, Et, nult, G)
 # Laminate Properites                                                         #
 ###############################################################################
 # Define the stacking sequence.
-angles_deg = [0, 0, 45, 90, -45, -45, 90, 45, 0, 0]
+
+import json
+with open('all_layup_designs_10layer.json', 'r') as f:
+  layup_designs = json.load(f) #keys in order: bs, ubs, bus, ubus
+
+bs = layup_designs['bs']
+
+angles_deg = [0, 0, -45, 90, -45, -45, 90, 45, 0, 0]
 thickness = [t] * len(angles_deg)
 Q = [Q] * len(angles_deg)
 
@@ -68,10 +75,28 @@ strain = deformation.ply_strain(deformed, Q, angles_deg, thickness)
 stress = deformation.ply_stress(deformed, Q, angles_deg, thickness, plotting=True)
 
 
+strs_list = []
+for strs in stress:
+  strs_list.append(strs[0].tolist()+strs[1].tolist())
+
+all_stresses = []
+for strs in strs_list:
+  mid_list = []
+  for strs2 in strs:
+    mid_list.append(strs2[0])
+  all_stresses.append(mid_list)
+
+import time
+timestr = time.strftime("%Y%m%d-%H%M%S")
+
+import json
+with open(f'/content/drive/My Drive/all_simulations_10layer_{timestr}.json', 'w') as files:
+    json.dump(all_stresses, files)
+
 ###############################################################################
 # Test Ply Failure with various criteria                                      #
 ###############################################################################
 # Testing whether the failure criterias are violated.
-failure.max_stress(stress, Xt, Xc, Yt, Yc, Smax)
-failure.tsai_wu(stress, Xt, Xc, Yt, Yc, Smax)
-failure.tsai_hill(stress, Xt, Xc, Yt, Yc, Smax)
+# failure.max_stress(stress, Xt, Xc, Yt, Yc, Smax)
+# failure.tsai_wu(stress, Xt, Xc, Yt, Yc, Smax)
+# failure.tsai_hill(stress, Xt, Xc, Yt, Yc, Smax)
